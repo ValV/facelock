@@ -7,6 +7,8 @@
 
 #include <iostream>
 
+#include "main.hpp"
+
 using namespace cv;
 using namespace std;
 
@@ -14,11 +16,17 @@ int main(int argc, const char *argv[]) {
   // Check arguments
   if (argc < 2) {
     cout << "Usage: " << argv[0] << " <path/to/haar_cascade>" << endl;
-    exit(1);
+    //exit(1);
   }
 
-  // Create cascade classifier (Haar)
-  string haar_path = string(argv[1]);
+  // Create cascade classifier (Haar) default Haar Cascade resides in
+  // /usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml
+  string haar_path;
+  if (argc > 1 && exists(argv[1])) {
+    haar_path = string(argv[1]);
+  } else {
+    haar_path = "/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml";
+  }
   CascadeClassifier haar_cascade;
   haar_cascade.load(haar_path);
 
