@@ -19,16 +19,19 @@ int main(int argc, const char *argv[]) {
     //exit(1);
   }
 
-  // Create cascade classifier (Haar) default Haar Cascade resides in
+  // Create cascade classifier: default face Haar Cascade resides in
   // /usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml
-  string haar_path;
+  string haar_path_face = "/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml";
   if (argc > 1 && exists(argv[1])) {
-    haar_path = string(argv[1]);
-  } else {
-    haar_path = "/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml";
+    haar_path_face = string(argv[1]);
   }
   CascadeClassifier haar_cascade;
-  haar_cascade.load(haar_path);
+  haar_cascade.load(haar_path_face);
+
+  // Create extra cascade for eyes
+  string haar_path_eyes = "/usr/share/opencv4/haarcascades/haarcascade_eye.xml";
+  CascadeClassifier haar_extra_eyes;
+  haar_extra_eyes.load(haar_path_eyes);
 
   // Open video capture device
   VideoCapture cap(0); // 0 - default video capture device
@@ -43,23 +46,41 @@ int main(int argc, const char *argv[]) {
     cap >> frame;
     Mat original = frame.clone();
     Mat gray;
-    cvtColor(original, gray, CV_BGR2GRAY); // convert the current frame
+    cvtColor(original, gray, CV_BGR2GRAY); // convert the frame
     vector<Rect_<int>> faces;
     haar_cascade.detectMultiScale(gray, faces); // detect faces from gray
 
+    vector<Rect_<int>> eyes;
+    haar_extra_eyes.detectMultiScale(gray, eyes);
+
     // Now faces variable holds rectangles for all detected faces
     // in the current frame. Annotate every face in the frame
-    for (int i = 0; i < faces.size(); i ++) {
-      // Highlight the face with a rectangle and a text in the frame
-      Rect the_face_rect = faces[i];
-      rectangle(original, the_face_rect, CV_RGB(0, 255, 0), 1);
-      string box_text = format("Face found");
+    // (if a face is between 5% and 55% of a frame)
+    if (eyes.size() == 2) { // early reject false face
+      Rect eyes_line = eyes[0] | eyes[1];
+      if (eyes_line.width > 2 * eyes_line.height) {
+        // Highlight the face with a rectangle and a text in the frame
+        for (int i = 0; i < faces.size(); i ++) {
+          Rect face_rect = faces[i];
+          double face_ratio = face_rect.width * face_rect.height * 100.0 /
+            original.cols / original.rows;
+          // Filter out bad frames (face must be 5..55% of a frame)
+          if (!((face_rect & eyes_line) == eyes_line)) break;
+          if ((5 >= face_ratio) || (55 <=face_ratio)) break;
+          // Good face rectangle (ready for training or evaluating)
+          // Draw rectangles and labels (TODO: make it as an option)
+          rectangle(original, face_rect, CV_RGB(0, 255, 0), 1);
+          rectangle(original, eyes_line, CV_RGB(0, 0, 255), 1);
 
-      int pos_x = std::max(the_face_rect.tl().x - 10, 0);
-      int pos_y = std::max(the_face_rect.tl().y - 10, 0);
+          string box_text = format("Face found in %.2f%% area", face_ratio);
 
-      putText(original, box_text, Point(pos_x, pos_y), FONT_HERSHEY_PLAIN,
-          1.0, CV_RGB(0, 255, 0), 2.0);
+          int pos_x = std::max(face_rect.tl().x - 10, 0);
+          int pos_y = std::max(face_rect.tl().y - 10, 0);
+
+          putText(original, box_text, Point(pos_x, pos_y),
+              FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0, 255, 0), 2.0);
+        }
+      }
     }
     // Display the frame with faces detected
     imshow("face_recognizer", original);
