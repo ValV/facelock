@@ -19,7 +19,7 @@ all: $(ELFS)
 
 $(ELFS): $(OBJS)
 	@echo "Building binary files"
-	$(CXX) $(LDFLAGS) -o $@ $<
+	$(CXX) $(LDFLAGS) -o $@ $^
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(SRCDIR)/%.hpp | $(OBJDIR)
 	@echo "Building object files"
