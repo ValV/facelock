@@ -23,7 +23,7 @@ $(ELFS): $(OBJS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(SRCDIR)/%.hpp | $(OBJDIR)
 	@echo "Building object files"
-	$(CXX) $(INCLUDE) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(INCLUDE) $(CXXFLAGS) -c -g -o $@ $<
 
 $(SRCDIR)/%.hpp: ;
 
