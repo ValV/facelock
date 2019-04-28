@@ -22,10 +22,6 @@ int main(int argc, char *argv[]) {
     cout << " Failed to initialize program options. Terminating..." << endl;
     exit(-1);
   } else {
-    cout << "Options/faces: " << options->haar_faces() << endl;
-    cout << "Options/eyes: " << options->haar_eyes() << endl;
-    cout << "Options/data: " << options->user_data() << endl;
-    cout << endl;
     options->ParseOptions(argc, argv);
     cout << "Options/faces: " << options->haar_faces() << endl;
     cout << "Options/eyes: " << options->haar_eyes() << endl;
@@ -35,17 +31,12 @@ int main(int argc, char *argv[]) {
 
   // Create cascade classifier: default face Haar Cascade resides in
   // /usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml
-  string haar_path_face = options->haar_faces();
-  if (argc > 1 && exists(argv[1])) {
-    haar_path_face = string(argv[1]);
-  }
   CascadeClassifier haar_cascade;
-  haar_cascade.load(haar_path_face);
+  haar_cascade.load(options->haar_faces());
 
   // Create extra cascade for eyes
-  string haar_path_eyes = options->haar_eyes();
   CascadeClassifier haar_extra_eyes;
-  haar_extra_eyes.load(haar_path_eyes);
+  haar_extra_eyes.load(options->haar_eyes());
 
   // Open video capture device
   VideoCapture cap(0); // 0 - default video capture device
