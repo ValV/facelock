@@ -47,52 +47,52 @@ int main(int argc, char *argv[]) {
   // Process video input per frame
   Mat frame;
   while (true) {
-    // Get current frame, convert it to gray and detect a face
+    // Get current frame, convert it to gray to detect a face
     cap >> frame;
     Mat original = frame.clone();
     Mat gray;
     cvtColor(original, gray, CV_BGR2GRAY); // convert the frame
     vector<Rect_<int>> faces;
-    haar_cascade.detectMultiScale(gray, faces); // detect faces from gray
-
-    vector<Rect_<int>> eyes;
-    haar_extra_eyes.detectMultiScale(gray, eyes);
+    double face_side = sqrt(original.cols * original.rows);
+    // Detect a face (5..55% of a frame)
+    haar_cascade.detectMultiScale(gray, faces, 1.2, 4,
+        CASCADE_SCALE_IMAGE,
+        Size(face_side * 0.05, face_side * 0.05),
+        Size(face_side * 0.55, face_side * 0.55));
 
     // Now faces variable holds rectangles for all detected faces
     // in the current frame. Annotate every face in the frame
-    // (if a face is between 5% and 55% of a frame)
-    if (eyes.size() == 2) { // early reject false face
-      Rect eyes_line = eyes[0] | eyes[1];
-      if (eyes_line.width > 2 * eyes_line.height) {
-        // Highlight the face with a rectangle and a text in the frame
-        for (int i = 0; i < faces.size(); i ++) {
-          Rect face_rect = faces[i];
-          double face_ratio = face_rect.width * face_rect.height * 100.0 /
-            original.cols / original.rows;
-          // Filter out bad frames (face must be 5..55% of a frame)
-          if (!((face_rect & eyes_line) == eyes_line)) break;
-          if ((5 >= face_ratio) || (55 <=face_ratio)) break;
-          // Good face rectangle (ready for training or evaluating)
-          // Draw rectangles and labels (TODO: make it as an option)
+    if (faces.size() == 1) {
+      Rect face_rect = faces[0];
+      vector<Rect_<int>> eyes;
+      // Detect eyes (10..30% of a face)
+      haar_extra_eyes.detectMultiScale(Mat(gray, face_rect), eyes, 1.2, 3,
+          CASCADE_SCALE_IMAGE,
+          Size(face_rect.width * 0.1, face_rect.height * 0.1),
+          Size(face_rect.width * 0.3, face_rect.height * 0.3));
+      if (eyes.size() == 2) { // early reject false face
+        Rect eyes_line = eyes[0] | eyes[1];
+        if (eyes_line.width > 2 * eyes_line.height) { // false eyes
+          // Highlight the face with a rectangle and a text in the frame
           rectangle(original, face_rect, CV_RGB(0, 255, 0), 1);
-          rectangle(original, eyes_line, CV_RGB(0, 0, 255), 1);
+          rectangle(original, eyes_line + face_rect.tl(), CV_RGB(0, 0, 255), 1);
 
-          string box_text = format("Face area: %dx%d px (%.2f%%)",
-              face_rect.width, face_rect.height, face_ratio);
+          string box_text = format("Face: %dx%d px",
+              face_rect.width, face_rect.height);
 
           int pos_x = std::max(face_rect.tl().x - 10, 0);
           int pos_y = std::max(face_rect.tl().y - 10, 0);
 
           putText(original, box_text, Point(pos_x, pos_y),
               FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0, 255, 0), 2.0);
+          // Display the frame with face detected
+          imshow("facelock", (original));
         }
       }
     }
-    // Display the frame with faces detected
-    imshow("face_recognizer", original);
 
     // Wait and catch keypress
-    char key = (char) waitKey(50);
+    char key = (char) waitKey(80);
     if (key == 27) break;
   }
 
