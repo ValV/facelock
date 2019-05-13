@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     vector<Rect_<int>> faces;
     double face_side = sqrt(original.cols * original.rows);
     // Detect a face (5..55% of a frame)
-    haar_cascade.detectMultiScale(gray, faces, 1.2, 4,
+    haar_cascade.detectMultiScale(gray, faces, 1.2, 3,
         CASCADE_SCALE_IMAGE,
         Size(face_side * 0.05, face_side * 0.05),
         Size(face_side * 0.55, face_side * 0.55));
@@ -80,8 +80,8 @@ int main(int argc, char *argv[]) {
           string box_text = format("Face: %dx%d px",
               face_rect.width, face_rect.height);
 
-          int pos_x = std::max(face_rect.tl().x - 10, 0);
-          int pos_y = std::max(face_rect.tl().y - 10, 0);
+          int pos_x = face_rect.tl().x + 2;
+          int pos_y = face_rect.tl().y + 14;
 
           putText(original, box_text, Point(pos_x, pos_y),
               FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0, 255, 0), 2.0);
