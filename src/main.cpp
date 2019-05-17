@@ -4,6 +4,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgproc/types_c.h"
 #include "opencv2/objdetect/objdetect.hpp"
+#include "opencv2/face/facemark.hpp"
 #include "opencv2/videoio/videoio.hpp"
 
 #include <unistd.h>
@@ -12,6 +13,7 @@
 #include <string>
 
 using namespace cv;
+using namespace cv::face;
 using namespace std;
 
 const char *keys =
@@ -33,6 +35,10 @@ int main(int argc, char *argv[]) {
   // Create cascade classifier
   CascadeClassifier face_cascade;
   face_cascade.load(cascade);
+
+  // Create face landmark predictor
+  Ptr<Facemark> facemark = createFacemarkKazemi();
+  facemark->loadModel("face_landmark_model.dat");
 
   // Open video capture device
   VideoCapture cap(0); // 0 - default video capture device
@@ -61,6 +67,13 @@ int main(int argc, char *argv[]) {
     // in the current frame. Annotate every face in the frame
     if (faces.size() == 1) {
       Rect face_rect = faces[0];
+      vector<vector<Point2f>> shapes;
+      if (facemark->fit(original, faces, shapes)) {
+        // Draw face landmarks
+        for (int i = 36; i < 48; i ++) {
+          circle(original, shapes[0][i], 2, Scalar(255, 0, 0), FILLED);
+        }
+      }
       // Highlight the face with a rectangle and a text in the frame
       rectangle(original, face_rect, CV_RGB(0, 255, 0), 1);
       // Display the frame with face detected
