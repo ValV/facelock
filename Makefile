@@ -9,7 +9,7 @@ SRCDIR=src
 CXX=g++
 INCLUDE=-I/usr/include/opencv4
 CXXFLAGS=
-LDFLAGS=-lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_objdetect -lopencv_videoio -lopencv_face
+LDFLAGS=-lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_objdetect -lopencv_videoio -lopencv_face -lopencv_dnn
 
 PROG=facelock
 ELFS=$(addprefix $(OUTDIR)/, $(PROG))

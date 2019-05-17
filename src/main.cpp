@@ -6,6 +6,7 @@
 #include "opencv2/objdetect/objdetect.hpp"
 #include "opencv2/face/facemark.hpp"
 #include "opencv2/videoio/videoio.hpp"
+#include "opencv2/dnn/dnn.hpp"
 
 #include <unistd.h>
 #include <getopt.h>
@@ -14,11 +15,12 @@
 
 using namespace cv;
 using namespace cv::face;
+using namespace cv::dnn;
 using namespace std;
 
 const char *keys =
   "{ help h    | | Print help message. }"
-  "{ cascade c |/usr/share/opencv4/lbpcascades/lbpcascade_frontalface.xml| Path to pretrained face detect model. }"
+  "{ cascade c | | Path to pretrained face detect model. }"
   ;
 
 int main(int argc, char *argv[]) {
@@ -29,12 +31,10 @@ int main(int argc, char *argv[]) {
     parser.printMessage();
     return 0;
   }
-  String cascade =  parser.get<String>("cascade");
-  cout << "Path to cascade: " << parser.get<String>("cascade") << endl;
-
-  // Create cascade classifier
-  CascadeClassifier face_cascade;
-  face_cascade.load(cascade);
+  float confidenceThreshold = 0.7; // initial confidence
+  const string tensorflowConfigFile = "opencv_face_detector.pbtxt";
+  const string tensorflowWeightFile = "opencv_face_detector_uint8.pb";
+  Net mobileNet = readNetFromTensorflow(tensorflowWeightFile, tensorflowConfigFile);
 
   // Create face landmark predictor
   Ptr<Facemark> facemark = createFacemarkKazemi();
@@ -52,16 +52,24 @@ int main(int argc, char *argv[]) {
     // Get current frame, convert it to gray to detect a face
     cap >> frame;
     Mat original = frame.clone();
-    Mat gray;
-    cvtColor(original, gray, CV_BGR2GRAY); // convert the frame
-    equalizeHist(gray, gray);
+    Mat inputBlob = blobFromImage(original, 1.0,
+        Size(299, 299), Scalar(103.93, 116.77, 123.68),
+        true, false);
+    mobileNet.setInput(inputBlob, "data");
+    Mat detection = mobileNet.forward("detection_out");
+    Mat detectionMat(detection.size[2], detection.size[3],
+        CV_32F, detection.ptr<float>());
     vector<Rect_<int>> faces;
-    double face_side = sqrt(original.cols * original.rows);
-    // Detect a face (5..55% of a frame)
-    face_cascade.detectMultiScale(gray, faces, 1.2, 4,
-        CASCADE_SCALE_IMAGE,
-        Size(face_side * 0.07, face_side * 0.07),
-        Size(face_side * 0.55, face_side * 0.55));
+    for (int i = 0; i < detectionMat.rows; i ++) {
+      float confidence = detectionMat.at<float>(i, 2);
+      if (confidence > confidenceThreshold) {
+        int x1 = static_cast<int>(detectionMat.at<float>(i, 3) * original.cols);
+        int y1 = static_cast<int>(detectionMat.at<float>(i, 4) * original.rows);
+        int x2 = static_cast<int>(detectionMat.at<float>(i, 5) * original.cols);
+        int y2 = static_cast<int>(detectionMat.at<float>(i, 6) * original.rows);
+        faces.push_back(Rect(x1, y1, x2 - x1, y2 - y1));
+      }
+    }
 
     // Now faces variable holds rectangles for all detected faces
     // in the current frame. Annotate every face in the frame
@@ -81,7 +89,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Wait and catch keypress (ESC)
-    char key = (char) waitKey(100);
+    char key = (char) waitKey(250);
     if (key == 27) break;
   }
 
