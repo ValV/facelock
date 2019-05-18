@@ -47,13 +47,19 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  CV_Assert(parser.get<int>("width") > 31);
-  CV_Assert(parser.get<int>("height") > 31);
-  CV_Assert(parser.get<float>("confidence") > 0.1
-      && parser.get<float>("confidence") <= 1.0);
-  CV_Assert(exists(parser.get<string>("model")));
-  CV_Assert(exists(parser.get<string>("weights")));
-  CV_Assert(exists(parser.get<string>("landmarks")));
+  try {
+    CV_Assert(parser.get<int>("width") > 31);
+    CV_Assert(parser.get<int>("height") > 31);
+    CV_Assert(parser.get<float>("confidence") > 0.1
+        && parser.get<float>("confidence") <= 1.0);
+    CV_Assert(exists(parser.get<string>("model")));
+    CV_Assert(exists(parser.get<string>("weights")));
+    CV_Assert(exists(parser.get<string>("landmarks")));
+  } catch (...) {
+    parser.printMessage();
+    cout << "Error: wrong command line or missing files!" << endl;
+    return 1;
+  }
 
   bool showpts = parser.get<bool>("showpts");
   int affineWidth = parser.get<int>("width");
@@ -73,7 +79,7 @@ int main(int argc, char *argv[]) {
   VideoCapture cap(0); // 0 - default video capture device
   if (!cap.isOpened()) {
     cerr << "Capture device ID 0 cannot be opened." << endl;
-    return -1;
+    return 2;
   }
 
   // Process video input per frame
