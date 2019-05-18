@@ -30,8 +30,10 @@ const char *keys =
   "                       Path to Tensorflow model (.pbtxt). }"
   "{ weights w    |opencv_face_detector_uint8.pb|"
   "                       Path to Tensorflow model weights (.pb). }"
-  "{ width x      | 224 | Affine map window width (x axis) from 16px. }"
-  "{ height y     | 224 | Affine map window height (y axis) from 16px. }"
+  "{ landmarks l  |face_landmark_model.dat|"
+  "                       Path to Kazemi landmark weights (.dat). }"
+  "{ width x      | 224 | Affine map window width (x axis) from 32px. }"
+  "{ height y     | 224 | Affine map window height (y axis) from 32px. }"
   "{ confidence c | 0.7 | Initial confidence for face detection. }"
   "{ showpts s    |false| Show landmark points + auxiliary points. }"
   ;
@@ -45,29 +47,27 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  CV_Assert(parser.get<int>("width") > 15);
-  CV_Assert(parser.get<int>("height") > 15);
+  CV_Assert(parser.get<int>("width") > 31);
+  CV_Assert(parser.get<int>("height") > 31);
   CV_Assert(parser.get<float>("confidence") > 0.1
       && parser.get<float>("confidence") <= 1.0);
   CV_Assert(exists(parser.get<string>("model")));
   CV_Assert(exists(parser.get<string>("weights")));
+  CV_Assert(exists(parser.get<string>("landmarks")));
 
   bool showpts = parser.get<bool>("showpts");
   int affineWidth = parser.get<int>("width");
-  int affineHeight = (parser.has("height")) ? parser.get<int>("height")
-    : affineWidth;
+  int affineHeight = parser.get<int>("height");
   float eyeDesired[] = {0.35, 0.35}; // desired left eye x, y shift
   float confidenceThreshold = parser.get<float>("confidence");
-  const string tensorflowConfigFile = parser.get<string>("model");
-  const string tensorflowWeightFile = parser.get<string>("weights");
 
   // Create SSD network from Tensorflow model
-  Net mobileNet = readNetFromTensorflow(tensorflowWeightFile,
-      tensorflowConfigFile);
+  Net mobileNet = readNetFromTensorflow(parser.get<string>("weights"),
+      parser.get<string>("model"));
 
   // Create face landmark predictor
   Ptr<Facemark> facemark = createFacemarkKazemi();
-  facemark->loadModel("face_landmark_model.dat");
+  facemark->loadModel(parser.get<string>("landmarks"));
 
   // Open video capture device
   VideoCapture cap(0); // 0 - default video capture device
