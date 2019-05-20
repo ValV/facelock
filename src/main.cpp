@@ -1,10 +1,9 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/utility.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/imgproc/types_c.h"
-#include "opencv2/objdetect/objdetect.hpp"
 #include "opencv2/face/facemark.hpp"
+#include "opencv2/imgproc/types_c.h"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include "opencv2/videoio/videoio.hpp"
 #include "opencv2/dnn/dnn.hpp"
 
@@ -159,7 +158,7 @@ int main(int argc, char *argv[]) {
         rectangle(original, face_rect, CV_RGB(250, 128, 114));
         // Draw border around affine map
         rectangle(affine, Rect(0, 0, affine.cols, affine.rows),
-            CV_RGB(112, 128, 144));
+            CV_RGB(112, 128, 144), 2);
         // Draw affine map on the frame
         affine.copyTo(original(Rect(original.cols - affineWidth,
               original.rows - affineHeight, affineWidth, affineHeight)));
