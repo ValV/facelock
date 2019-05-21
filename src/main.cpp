@@ -1,21 +1,18 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/utility.hpp"
 #include "opencv2/face/facemark.hpp"
-#include "opencv2/imgproc/types_c.h"
-#include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/videoio/videoio.hpp"
 #include "opencv2/dnn/dnn.hpp"
 
-#include <unistd.h>
-#include <getopt.h>
 #include <sys/stat.h>
 #include <iostream>
-#include <string>
+//#include <string>
 
 using namespace cv;
-using namespace cv::face;
 using namespace cv::dnn;
+using namespace cv::face;
 using namespace std;
 
 inline bool exists(const std::string &path) {
@@ -63,16 +60,8 @@ int main(int argc, char *argv[]) {
   bool showpts = parser.get<bool>("showpts");
   int affineWidth = parser.get<int>("width");
   int affineHeight = parser.get<int>("height");
-  float eyeDesired[] = {0.35, 0.35}; // desired left eye x, y shift
   float confidenceThreshold = parser.get<float>("confidence");
-
-  // Create SSD network from Tensorflow model
-  Net mobileNet = readNetFromTensorflow(parser.get<string>("weights"),
-      parser.get<string>("model"));
-
-  // Create face landmark predictor
-  Ptr<Facemark> facemark = createFacemarkKazemi();
-  facemark->loadModel(parser.get<string>("landmarks"));
+  float eyeDesired[] = {0.35, 0.35}; // desired left eye x, y shift
 
   // Open video capture device
   VideoCapture cap(0); // 0 - default video capture device
@@ -80,6 +69,14 @@ int main(int argc, char *argv[]) {
     cerr << "Capture device ID 0 cannot be opened." << endl;
     return 2;
   }
+
+  // Create SSD network from Tensorflow model
+  Net ssdNet = readNetFromTensorflow(parser.get<string>("weights"),
+      parser.get<string>("model"));
+
+  // Create face landmark predictor
+  Ptr<Facemark> facemark = createFacemarkKazemi();
+  facemark->loadModel(parser.get<string>("landmarks"));
 
   // Process video input per frame
   Mat frame;
@@ -89,11 +86,11 @@ int main(int argc, char *argv[]) {
     Mat original = frame.clone();
     // Prepare neural network (blob of certain size and color)
     Mat inputBlob = blobFromImage(original, 1.0,
-        Size(299, 299), Scalar(103.93, 116.77, 123.68),
+        Size(300, 300), Scalar(103.93, 116.77, 123.68),
         true, false);
-    mobileNet.setInput(inputBlob, "data");
+    ssdNet.setInput(inputBlob, "data");
     // Run network and get results
-    Mat detection = mobileNet.forward("detection_out");
+    Mat detection = ssdNet.forward("detection_out");
     Mat detectionMat(detection.size[2], detection.size[3],
         CV_32F, detection.ptr<float>());
     // Process results and get faces regions
