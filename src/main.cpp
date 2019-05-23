@@ -80,17 +80,23 @@ int main(int argc, char *argv[]) {
 
   // Process video input per frame
   Mat frame;
+  double frames_total = 0, frames_face = 0;
+  double time_face = 0, time_mark = 0;
+  clock_t time_start = 0;
   while (true) {
     // Get current frame, convert it and detect a face
     cap >> frame;
+    frames_total ++;
     Mat original = frame.clone();
     // Prepare neural network (blob of certain size and color)
     Mat inputBlob = blobFromImage(original, 1.0,
         Size(300, 300), Scalar(103.93, 116.77, 123.68),
         true, false);
+    time_start = clock();
     ssdNet.setInput(inputBlob, "data");
     // Run network and get results
     Mat detection = ssdNet.forward("detection_out");
+    time_face = (double) (clock() - time_start) / CLOCKS_PER_SEC;
     Mat detectionMat(detection.size[2], detection.size[3],
         CV_32F, detection.ptr<float>());
     // Process results and get faces regions
@@ -113,9 +119,12 @@ int main(int argc, char *argv[]) {
     // Now faces variable holds rectangles for all detected faces
     // in the current frame. Annotate a face in the frame
     if (faces.size() == 1) {
+      frames_face ++;
       Rect face_rect = faces[0];
       vector<vector<Point2f>> shapes;
+      time_start = clock();
       if (facemark->fit(original, faces, shapes)) {
+        time_mark = (double) (clock() - time_start) / CLOCKS_PER_SEC;
         // Calculate a center of each eye and a center between eyes
         Point2f eyeLeft = (shapes[0][42] + shapes[0][45]) / 2;
         Point2f eyeRight = (shapes[0][36] + shapes[0][39]) / 2;
@@ -160,9 +169,17 @@ int main(int argc, char *argv[]) {
         affine.copyTo(original(Rect(original.cols - affineWidth,
               original.rows - affineHeight, affineWidth, affineHeight)));
       }
-      // Display the frame with face detected (and affine map applied)
-      imshow("facelock", (original));
     }
+
+    // Display detector performance (accuracy + time)
+    string box_text = format("Accuracy: %3.1f%%, time: %.3fs (%.3fs)",
+        frames_face / frames_total * 100, time_mark + time_face,
+        time_face);
+    putText(original, box_text, Point(2, 14),
+        FONT_HERSHEY_PLAIN, 1.0, CV_RGB(199, 21, 133), 2.0);
+
+    // Display the frame with face detected (and affine map applied)
+    imshow("facelock", (original));
 
     // Wait and catch keypress (ESC)
     char key = (char) waitKey(250);
