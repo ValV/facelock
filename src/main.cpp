@@ -80,6 +80,15 @@ int main(int argc, char *argv[]) {
 
   // Process video input per frame
   Mat frame;
+  cap >> frame;
+  // Open video writer framework
+  VideoWriter ffmpeg("/var/tmp/facelock.mkv",
+      VideoWriter::fourcc('X','2','6','4'), 4, //29.97,
+      Size(frame.cols, frame.rows));
+  if (!ffmpeg.isOpened()) {
+    return 3;
+  }
+
   double frames_total = 0, frames_face = 0;
   double time_face = 0, time_mark = 0;
   clock_t time_start = 0;
@@ -180,12 +189,14 @@ int main(int argc, char *argv[]) {
 
     // Display the frame with face detected (and affine map applied)
     imshow("facelock", (original));
+    ffmpeg << (original);
 
     // Wait and catch keypress (ESC)
     char key = (char) waitKey(250);
     if (key == 27) break;
   }
 
+  ffmpeg.release();
   destroyAllWindows();
   return 0;
 }
