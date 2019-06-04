@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     double face_side = sqrt(original.cols * original.rows);
     // Detect a face (5..55% of a frame)
     time_start = clock();
-    haar_face.detectMultiScale(gray, faces, 1.2, 4,
+    haar_face.detectMultiScale(gray, faces, 1.2, 6,
         CASCADE_SCALE_IMAGE,
         Size(face_side * 0.05, face_side * 0.05),
         Size(face_side * 0.55, face_side * 0.55));
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
       vector<Rect_<int>> eyes;
       // Detect eyes (10..30% of a face)
       time_start = clock();
-      haar_eyes.detectMultiScale(Mat(gray, face_rect), eyes, 1.2, 3,
+      haar_eyes.detectMultiScale(Mat(gray, face_rect), eyes, 1.2, 4,
           CASCADE_SCALE_IMAGE,
           Size(face_rect.width * 0.1, face_rect.height * 0.1),
           Size(face_rect.width * 0.3, face_rect.height * 0.3));
