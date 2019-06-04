@@ -17,18 +17,21 @@ inline bool exists(const std::string &path) {
 };
 
 const char *keys =
-  "{ help h | | Print help message. }"
-  "{ face f |/usr/share/opencv4/haarcascades"
+  "{ help h       |     | Print help message. }"
+  "{ face f       |/usr/share/opencv4/haarcascades"
   "/haarcascade_frontalface_default.xml|"
   "             Path to pretrained face detect model (.xml). }"
-  "{ eyes e |/usr/share/opencv4/haarcascades"
+  "{ eyes e       |/usr/share/opencv4/haarcascades"
   "/haarcascade_eye.xml|"
   "             Path to pretrained eye detect model (.xml). }"
+  "{ width x      | 224 | Affine map window width (x axis) from 32px. }"
+  "{ height y     | 224 | Affine map window height (y axis) from 32px. }"
+  "{ showpts s    |false| Show landmark points + auxiliary points. }"
   ;
 
 
 int main(int argc, char *argv[]) {
-  // Configure program options
+  // Configure program command line options
   CommandLineParser parser(argc, argv, keys);
   parser.about("Face detection OpenCV application");
   if (parser.has("help")) {
@@ -37,14 +40,21 @@ int main(int argc, char *argv[]) {
   }
 
   try {
+    CV_Assert(parser.get<int>("width") > 31);
+    CV_Assert(parser.get<int>("height") > 31);
     CV_Assert(exists(parser.get<string>("face")));
     CV_Assert(exists(parser.get<string>("eyes")));
-  } catch(...) {
+  } catch (...) {
     parser.printMessage();
     cout << "Error: wrong command line or missing files!" << endl;
     cout << parser.get<string>("face") << endl;
     return 1;
   }
+
+  bool showpts = parser.get<bool>("showpts");
+  int affineWidth = parser.get<int>("width");
+  int affineHeight = parser.get<int>("height");
+  float eyeDesired[] = {0.35, 0.35}; // desired left eye x, y shift
 
   // Open video capture device
   VideoCapture cap(0); // 0 - default video capture device
@@ -95,12 +105,60 @@ int main(int argc, char *argv[]) {
           Size(face_rect.width * 0.1, face_rect.height * 0.1),
           Size(face_rect.width * 0.3, face_rect.height * 0.3));
       time_eyes = (double) (clock() - time_start) / CLOCKS_PER_SEC;
-      if (eyes.size() == 2) { // early reject false face
+      if (eyes.size() == 2) { // early reject false eyes
         Rect eyes_rect = eyes[0] | eyes[1];
         if (eyes_rect.width > 2 * eyes_rect.height) {
           frames_eyes ++;
-          rectangle(original, eyes_rect + face_rect.tl(),
-              CV_RGB(60, 179, 113));
+          // Calculate a center of each eye and a center between eyes
+          Point2f eyeLeft;
+          Point2f eyeRight;
+          if (eyes[0].x < eyes[1].x) { // eyes[0] - left, eyes[1] - right
+            eyeLeft = face_rect.tl() + (eyes[0].tl() + eyes[0].br()) / 2;
+            eyeRight = face_rect.tl() + (eyes[1].tl() + eyes[1].br()) / 2;
+          } else {
+            eyeLeft = face_rect.tl() + (eyes[1].tl() + eyes[1].br()) / 2;
+            eyeRight = face_rect.tl() + (eyes[0].tl() + eyes[0].br()) / 2;
+          }
+          Point2f eyesCenter = (eyeLeft + eyeRight) / 2;
+          // Calculate shifts, scale, and rotation angle
+          float dX = eyeRight.x - eyeLeft.x;
+          float dY = eyeRight.y - eyeLeft.y;
+          float scale = (1.0 - eyeDesired[0] - eyeDesired[0]) * affineWidth
+            / (sqrt(pow(dX, 2) + pow(dY, 2)));
+          float angle = atan2(dY, dX) * 180 / M_PI;
+          // Get affine rotation matrix
+          Mat M = getRotationMatrix2D(eyesCenter, angle, scale);
+          // Adjust eyes' center target point
+          float tX = affineWidth * 0.5;
+          float tY = affineHeight * eyeDesired[1];
+          M.at<double>(0, 2) += (tX - eyesCenter.x);
+          M.at<double>(1, 2) += (tY - eyesCenter.y);
+          // Create affine transformation (map)
+          Mat affine(affineWidth, affineHeight, CV_32F);
+          warpAffine(original, affine, M, Size(affineWidth, affineHeight));
+          // Draw face landmarks
+          if (showpts) {
+            // Left eye rectangle
+            putText(original, "L", eyeLeft + Point2f(-4, -6),
+                FONT_HERSHEY_PLAIN, 1.0, CV_RGB(250, 128, 114), 2.0);
+            // Right eye rectangle
+            putText(original, "R", eyeRight + Point2f(-4, -6),
+                FONT_HERSHEY_PLAIN, 1.0, CV_RGB(250, 128, 114), 2.0);
+            rectangle(original, eyes_rect + face_rect.tl(),
+                CV_RGB(60, 179, 113));
+            // Auxiliary mideye point
+            circle(original, eyesCenter, 3, CV_RGB(221, 160, 221), FILLED);
+          }
+          // Highlight a face with a rectangle and eye marks
+          rectangle(original, face_rect, CV_RGB(250, 128, 114));
+          circle(original, eyeLeft, 3, CV_RGB(240, 230, 140), FILLED);
+          circle(original, eyeRight, 3, CV_RGB(240, 230, 140), FILLED);
+          // Draw border around affine map
+          rectangle(affine, Rect(0, 0, affine.cols, affine.rows),
+              CV_RGB(112, 128, 144), 1);
+          // Draw affine map on the frame
+          affine.copyTo(original(Rect(original.cols - affineWidth,
+                original.rows - affineHeight, affineWidth, affineHeight)));
         }
       }
       // Highlight the face with a rectangle
@@ -115,7 +173,7 @@ int main(int argc, char *argv[]) {
     putText(original, box_text, Point(2, 14),
         FONT_HERSHEY_PLAIN, 1.0, CV_RGB(199, 21, 133), 2.0);
 
-    // Display the frame with face detected
+    // Display the frame with face detected (and affine map applied)
     imshow("facelock", (original));
 
     // Wait and catch keypress
